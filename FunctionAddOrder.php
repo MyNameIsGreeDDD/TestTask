@@ -1,6 +1,14 @@
 <?php
 
-
+/**
+ * @param int $evenId
+ * @param string $eventDate
+ * @param string $ticketAdultPrice
+ * @param int $ticketAdultQuantity
+ * @param int $ticketKidPrice
+ * @param int $ticketKidQuantity
+ * @throws Exception
+ */
 function addOrder(int $evenId, string $eventDate, string $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity): void
 {
     $barcode = generateBarcode();
@@ -16,6 +24,9 @@ function addOrder(int $evenId, string $eventDate, string $ticketAdultPrice, int 
 
 }
 
+/**
+ * @return int|null
+ */
 function generateBarcode(): ?int
 {
     $barcode = mt_rand();
@@ -27,6 +38,10 @@ function generateBarcode(): ?int
     return generateBarcode();
 }
 
+/**
+ * @param int $barcode
+ * @return bool
+ */
 function validateBarcode(int $barcode): bool
 {
     if (isUniqBarcode($barcode)) {
@@ -36,6 +51,10 @@ function validateBarcode(int $barcode): bool
 
 }
 
+/**
+ * @param int $barcode
+ * @return bool
+ */
 function isUniqBarcode(int $barcode): bool
 {
     if (checkBarcodeInDb($barcode)) {
@@ -44,6 +63,10 @@ function isUniqBarcode(int $barcode): bool
     return false;
 }
 
+/**
+ * @param int $barcode
+ * @return bool
+ */
 function checkBarcodeInDb(int $barcode): bool
 {
     $searchForMatches = mysqli_query('SELECT barcode FROM Orders WHERE barcode = ' . $barcode . ';');
@@ -55,6 +78,16 @@ function checkBarcodeInDb(int $barcode): bool
     return false;
 }
 
+/**
+ * @param int $evenId
+ * @param string $eventDate
+ * @param string $ticketAdultPrice
+ * @param int $ticketAdultQuantity
+ * @param int $ticketKidPrice
+ * @param int $ticketKidQuantity
+ * @param int $barcode
+ * @return bool
+ */
 function bookingOrder(int $evenId, string $eventDate, string $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity, int $barcode): bool
 {
     $response = apiRequest('https://api.site.com/book', [
@@ -73,6 +106,10 @@ function bookingOrder(int $evenId, string $eventDate, string $ticketAdultPrice, 
     return false;
 }
 
+/**
+ * @param int $barcode
+ * @return string
+ */
 function orderApprove(int $barcode): string
 {
     $response = apiRequest('https://api.site.com/approve', ['barcode' => $barcode]);
@@ -83,6 +120,11 @@ function orderApprove(int $barcode): string
     return $response['error'];
 }
 
+/**
+ * @param string $url
+ * @param array $data
+ * @return array
+ */
 function apiRequest(string $url, array $data): array
 {
     $curl = curl_init($url);
@@ -96,6 +138,10 @@ function apiRequest(string $url, array $data): array
     return $response;
 }
 
+/**
+ * @param CurlHandle $curl
+ * @param array $data
+ */
 function setOptionsCurl(CurlHandle $curl, array $data): void
 {
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -103,6 +149,15 @@ function setOptionsCurl(CurlHandle $curl, array $data): void
     curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
 }
 
+/**
+ * @param int $evenId
+ * @param string $eventDate
+ * @param string $ticketAdultPrice
+ * @param int $ticketAdultQuantity
+ * @param int $ticketKidPrice
+ * @param int $ticketKidQuantity
+ * @param int $barcode
+ */
 function save(int $evenId, string $eventDate, string $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity, int $barcode): void
 {
     mysqli_query('INSERT INTO Orders(event_id, event_date, ticket_adult_price, ticket_adult_quantity, ticket_kid_price, ticket_kid_quantity, barcode)
