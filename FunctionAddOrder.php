@@ -3,71 +3,69 @@
 /**
  * @param int $evenId
  * @param string $eventDate
- * @param string $ticketAdultPrice
+ * @param int $ticketAdultPrice
  * @param int $ticketAdultQuantity
  * @param int $ticketKidPrice
  * @param int $ticketKidQuantity
  * @throws Exception
+ * Функция добавляет заказ
  */
-function addOrder(int $evenId, string $eventDate, string $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity): void
+function addOrder(int $evenId, string $eventDate, int $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity): void
 {
-    $barcode = generateBarcode();
+    $barcode = generateUniqBarcode();
 
     if (bookingOrder($evenId, $eventDate, $ticketAdultPrice, $ticketAdultQuantity, $ticketKidPrice, $ticketKidQuantity, $barcode)) {
-        $result = orderApprove($barcode);
-        if ($result === 'order successfully approved') {
+        $approve = orderApprove($barcode);
+        if ($approve === 'Order successfully approved') {
             save($evenId, $eventDate, $ticketAdultPrice, $ticketAdultQuantity, $ticketKidPrice, $ticketKidQuantity, $barcode);
         }
-        throw new Exception($result);
+        throw new Exception($approve);
     }
     throw new Exception('Something went wrong');
 
 }
 
 /**
- * @return int|null
+ * @return string|null
+ * Функция генерирует уникальный баркод.Генерирует его до того момента,пока баркод не будет уникальным
  */
-function generateBarcode(): ?int
+function generateUniqBarcode(): ?string
 {
-    $barcode = mt_rand();
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $barcode = '';
+
+    for ($i = 0; $i < 10; $i++) {
+        $barcode = $characters[rand(0, strlen($characters))];
+    }
 
     if (validateBarcode($barcode)) {
         return $barcode;
     }
 
-    return generateBarcode();
+    return generateUniqBarcode();
 }
 
 /**
- * @param int $barcode
+ * @param string $barcode
  * @return bool
+ * Функция проверяет баркод на уникальность
  */
-function validateBarcode(int $barcode): bool
+function validateBarcode(string $barcode): bool
 {
-    if (isUniqBarcode($barcode)) {
-        return true;
-    }
-    return false;
 
-}
-
-/**
- * @param int $barcode
- * @return bool
- */
-function isUniqBarcode(int $barcode): bool
-{
     if (checkBarcodeInDb($barcode)) {
         return true;
     }
     return false;
+
 }
 
 /**
- * @param int $barcode
+ * @param string $barcode
  * @return bool
+ * Функция проверяет наличие записи с данным баркодом
  */
-function checkBarcodeInDb(int $barcode): bool
+function checkBarcodeInDb(string $barcode): bool
 {
     $searchForMatches = mysqli_query('SELECT barcode FROM Orders WHERE barcode = ' . $barcode . ';');
     $countMatches = mysqli_num_rows($searchForMatches);
@@ -81,16 +79,17 @@ function checkBarcodeInDb(int $barcode): bool
 /**
  * @param int $evenId
  * @param string $eventDate
- * @param string $ticketAdultPrice
+ * @param int $ticketAdultPrice
  * @param int $ticketAdultQuantity
  * @param int $ticketKidPrice
  * @param int $ticketKidQuantity
- * @param int $barcode
+ * @param string $barcode
  * @return bool
+ * @throws Exception Функция бронирует заказ,либо выбрасывает исключение
  */
-function bookingOrder(int $evenId, string $eventDate, string $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity, int $barcode): bool
+function bookingOrder(int $evenId, string $eventDate, int $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity, string $barcode): bool
 {
-    $response = apiRequest('https://api.site.com/book', [
+    $response = apiRequest('https://api.site.com/book?', [
         'event_id' => $evenId,
         'event_date' => $eventDate,
         'ticket_adult_price' => $ticketAdultPrice,
@@ -100,19 +99,21 @@ function bookingOrder(int $evenId, string $eventDate, string $ticketAdultPrice, 
         'barcode' => $barcode
     ]);
 
-    if ($response['message'] === 'order successfully booked') {
+    if ($response['message'] === 'Order successfully booked') {
         return true;
     }
-    return false;
+    return throw new Exception($response['error']);
 }
 
 /**
- * @param int $barcode
+ * @param string $barcode
  * @return string
+ * @throws Exception
+ * Функция подтверждает  заказ принимая его баркод,либо возращает текст ошибки
  */
-function orderApprove(int $barcode): string
+function orderApprove(string $barcode): string
 {
-    $response = apiRequest('https://api.site.com/approve', ['barcode' => $barcode]);
+    $response = apiRequest('https://api.site.com/approve?', ['barcode' => $barcode]);
 
     if ($response['message'] === 'order successfully approved') {
         return $response['message'];
@@ -124,6 +125,7 @@ function orderApprove(int $barcode): string
  * @param string $url
  * @param array $data
  * @return array
+ * Функция отправляет данные к API
  */
 function apiRequest(string $url, array $data): array
 {
@@ -141,6 +143,7 @@ function apiRequest(string $url, array $data): array
 /**
  * @param CurlHandle $curl
  * @param array $data
+ * Функция настраивает curl
  */
 function setOptionsCurl(CurlHandle $curl, array $data): void
 {
@@ -152,13 +155,14 @@ function setOptionsCurl(CurlHandle $curl, array $data): void
 /**
  * @param int $evenId
  * @param string $eventDate
- * @param string $ticketAdultPrice
+ * @param int $ticketAdultPrice
  * @param int $ticketAdultQuantity
  * @param int $ticketKidPrice
  * @param int $ticketKidQuantity
- * @param int $barcode
+ * @param string $barcode
+ * Функция сохраняет данные
  */
-function save(int $evenId, string $eventDate, string $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity, int $barcode): void
+function save(int $evenId, string $eventDate, int $ticketAdultPrice, int $ticketAdultQuantity, int $ticketKidPrice, int $ticketKidQuantity, string $barcode): void
 {
     mysqli_query('INSERT INTO Orders(event_id, event_date, ticket_adult_price, ticket_adult_quantity, ticket_kid_price, ticket_kid_quantity, barcode)
 values(' . $evenId . ',' . $eventDate . ',' . $ticketAdultPrice . ',' . $ticketAdultQuantity . ',' . $ticketKidPrice . ',' . $ticketKidQuantity . ',' . $barcode . ');');
